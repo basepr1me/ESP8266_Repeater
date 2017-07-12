@@ -53,6 +53,8 @@ IPAddress local_subnet(SUBNET);
 IPAddress local_gateway(IP);
 IPAddress local_broadcast(BROADCAST);
 
+String ser_buf;
+
 #if UDP
   WiFiUDP myserver;
   WiFiEventHandler wifi_event;
@@ -123,6 +125,7 @@ void loop() {
           if (myserver_clients[clcount])
             myserver_clients[clcount].stop();
           myserver_clients[clcount] = myserver.available();
+          myserver_clients[clcount].setNoDelay(true);
           continue;
         }
       }
@@ -144,16 +147,20 @@ void loop() {
       }
     }
   #endif
+
   // check for serial data and write to clients
 
   if(Serial.available()){
-    size_t len = Serial.available();
-    uint8_t sbuf[len];
-    Serial.readBytes(sbuf, len);
+    while(Serial.available()) {
+      ser_buf = Serial.readStringUntil('\r');
+    }
+    size_t len = ser_buf.length();
+    char sbuf[len];
+    ser_buf.toCharArray(sbuf, len);
+
     #if UDP
 
       // broadcast
-
       if (number_clients > 0) {
         myserver.beginPacketMulticast(local_broadcast, CLIENT_PORT, WiFi.localIP());
         myserver.write(sbuf, len);
@@ -176,6 +183,8 @@ void loop() {
 void
 get_station(const WiFiEventSoftAPModeStationConnected& evt)
 {
-  number_clients = wifi_softap_get_station_num();
+  #if UDP
+    number_clients = wifi_softap_get_station_num();
+  #endif
 }
 
